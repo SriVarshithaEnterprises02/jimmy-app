@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="te">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jimmy Admin — లైవ్ ఆర్డర్ &amp; రైడ్ అలర్ట్‌లు</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Telugu:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Noto Sans Telugu', 'Inter', sans-serif; background-color: #f1f5f9; }
+    @keyframes pulseRing {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55); }
+      50% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+    }
+    .live-alert-pulse { animation: pulseRing 1.4s infinite; }
+  </style>
+</head>
+<body class="text-slate-900 pb-16">
+
+  <!-- PIN Lock Screen -->
+  <div id="pinScreen" class="fixed inset-0 z-50 bg-slate-900 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl text-center">
+      <div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-600 text-white text-2xl font-extrabold flex items-center justify-center">J</div>
+      <div>
+        <h1 class="text-xl font-extrabold text-slate-900">Jimmy Admin Panel</h1>
+        <p class="text-xs text-slate-500 mt-1">శ్రీ వర్షిత ఎంటర్‌ప్రైజెస్ · ఓనర్ లాగిన్</p>
+      </div>
+      <input id="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder="PIN నమోదు చేయండి (డిఫాల్ట్: 1234)" class="w-full text-center tracking-widest text-lg font-bold rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-emerald-600" />
+      <p id="pinError" class="hidden text-xs font-semibold text-rose-600">తప్పు PIN! మళ్ళీ ప్రయత్నించండి (డిఫాల్ట్: 1234)</p>
+      <button id="unlockBtn" type="button" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm transition">
+        🔓 అన్‌లాక్ చేయండి
+      </button>
+    </div>
+  </div>
+
+  <!-- Live Alert Banner (Appears when new order/ride arrives from Firebase) -->
+  <div id="liveAlertBanner" class="hidden sticky top-0 z-40 bg-rose-600 text-white px-4 py-3 shadow-lg live-alert-pulse">
+    <div class="max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-2">
+        <span class="text-xl">🚨</span>
+        <div>
+          <p id="liveAlertTitle" class="text-sm font-extrabold">కొత్త ఆర్డర్ / రైడ్ వచ్చింది!</p>
+          <p id="liveAlertSub" class="text-xs text-rose-100"></p>
+        </div>
+      </div>
+      <button id="dismissAlertBtn" type="button" class="bg-white text-rose-700 px-3 py-1.5 rounded-xl text-xs font-extrabold hover:bg-rose-50">
+        సరే, చూశాను ✓
+      </button>
+    </div>
+  </div>
+
+  <!-- Admin Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+    <div class="max-w-4xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5">
+        <div class="w-10 h-10 rounded-2xl bg-slate-900 text-white font-extrabold flex items-center justify-center">JA</div>
+        <div>
+          <h2 class="text-base font-extrabold text-slate-900 leading-none">Jimmy Live Admin</h2>
+          <p id="syncStatusText" class="text-[11px] text-emerald-700 font-semibold mt-1">🟢 Firebase లైవ్ కనెక్షన్ సిద్ధం</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="soundToggleBtn" type="button" class="px-3 py-1.5 rounded-xl bg-amber-100 text-amber-900 text-xs font-bold">
+          🔊 సౌండ్ అలర్ట్: ON
+        </button>
+        <button id="refreshNowBtn" type="button" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold">
+          🔄 రీఫ్రెష్
+        </button>
+      </div>
+    </div>
+
+    <!-- Admin Tabs -->
+    <div class="max-w-4xl mx-auto px-4 pb-3">
+      <div class="grid grid-cols-3 gap-2 bg-slate-100 p-1 rounded-2xl">
+        <button id="adminTabOrders" type="button" class="py-2 px-2 rounded-xl text-xs sm:text-sm font-bold bg-white text-emerald-700 shadow-xs">
+          🛒 ఆర్డర్లు (<span id="ordersCountBadge">0</span>)
+        </button>
+        <button id="adminTabRides" type="button" class="py-2 px-2 rounded-xl text-xs sm:text-sm font-bold text-slate-600">
+          🛺 రైడ్స్ (<span id="ridesCountBadge">0</span>)
+        </button>
+        <button id="adminTabOffers" type="button" class="py-2 px-2 rounded-xl text-xs sm:text-sm font-bold text-slate-600">
+          📢 ఆఫర్ అలర్ట్
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 pt-4 space-y-4">
+    <!-- Orders Tab -->
+    <section id="ordersPanel" class="space-y-3"></section>
+
+    <!-- Rides Tab -->
+    <section id="ridesPanel" class="hidden space-y-3"></section>
+
+    <!-- Offers / Broadcast Tab -->
+    <section id="offersPanel" class="hidden bg-white rounded-2xl border border-slate-200 p-4 space-y-3 shadow-xs">
+      <h3 class="text-base font-extrabold text-slate-900">📢 కస్టమర్లకు లైవ్ ఆఫర్ నోటిఫికేషన్ పంపండి</h3>
+      <p class="text-xs text-slate-500">ఇక్కడ మీరు రాసే ఆఫర్ వెంటనే కస్టమర్ల Jimmy యాప్ పైభాగంలో కనిపిస్తుంది.</p>
+      <input id="offerMessageInput" type="text" placeholder="ఉదా: 🎉 ఈరోజు ఉల్లిపాయలు కేజీ ₹35 మాత్రమే! వెంటనే ఆర్డర్ చేయండి" class="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-emerald-500" />
+      <button id="publishOfferBtn" type="button" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-extrabold">
+        🚀 ఆఫర్ పబ్లిష్ చేయండి
+      </button>
+      <p id="offerStatusMsg" class="text-xs font-semibold text-emerald-700 hidden"></p>
+    </section>
+  </main>
+
+  <script>
+    const FIREBASE_BASE = "https://chipo-admin-sve-default-rtdb.firebaseio.com/jimmy";
+    const ADMIN_PIN = "1234";
+
+    let soundEnabled = true;
+    let knownIds = new Set();
+    let firstLoad = true;
+    let ordersData = [];
+    let ridesData = [];
+
+    // Free Web Audio API Alert Chime (No external sound files required)
+    function playAlertSound() {
+      if (!soundEnabled) return;
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        [880, 1100, 880].forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = "sine";
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.18, ctx.currentTime + idx * 0.16);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.16 + 0.14);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(ctx.currentTime + idx * 0.16);
+          osc.stop(ctx.currentTime + idx * 0.16 + 0.15);
+        });
+      } catch {}
+    }
+
+    function triggerLiveAlert(title, sub) {
+      document.getElementById("liveAlertTitle").textContent = title;
+      document.getElementById("liveAlertSub").textContent = sub;
+      document.getElementById("liveAlertBanner").classList.remove("hidden");
+      playAlertSound();
+      try {
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification(title, { body: sub });
+        }
+      } catch {}
+    }
+
+    async function fetchFirebaseData() {
+      const statusEl = document.getElementById("syncStatusText");
+      try {
+        const [ordRes, rideRes] = await Promise.all([
+          fetch(`${FIREBASE_BASE}/orders.json`),
+          fetch(`${FIREBASE_BASE}/rides.json`),
+        ]);
+        const ordJson = await ordRes.json();
+        const rideJson = await rideRes.json();
+
+        ordersData = ordJson
+          ? Object.entries(ordJson).map(([fbKey, val]) => ({ fbKey, ...val })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+          : [];
+        ridesData = rideJson
+          ? Object.entries(rideJson).map(([fbKey, val]) => ({ fbKey, ...val })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+          : [];
+
+        // Check for brand-new requests since last poll
+        const allItems = [...ordersData, ...ridesData];
+        if (firstLoad) {
+          allItems.forEach((item) => knownIds.add(item.fbKey));
+          firstLoad = false;
+        } else {
+          allItems.forEach((item) => {
+            if (!knownIds.has(item.fbKey)) {
+              knownIds.add(item.fbKey);
+              triggerLiveAlert(
+                item.type === "ride" ? "🚨 కొత్త బైక్/ఆటో రైడ్ వచ్చింది!" : "🚨 కొత్త కిరాణా ఆర్డర్ వచ్చింది!",
+                `${item.customerName || "కస్టమర్"} (${item.customerPhone || ""}) · ₹${item.amount || 0}`
+              );
+            }
+          });
+        }
+
+        statusEl.textContent = "🟢 Firebase లైవ్ సింక్ ఆన్‌లో ఉంది (" + new Date().toLocaleTimeString("te-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) + ")";
+        renderOrders();
+        renderRides();
+      } catch {
+        statusEl.textContent = "🔴 కనెక్షన్ సమస్య — మళ్ళీ ప్రయత్నిస్తోంది...";
+      }
+    }
+
+    async function updateItemStatus(kind, fbKey, newStatus) {
+      try {
+        await fetch(`${FIREBASE_BASE}/${kind}/${fbKey}.json`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: newStatus }),
+        });
+        fetchFirebaseData();
+      } catch {}
+    }
+
+    function renderOrders() {
+      document.getElementById("ordersCountBadge").textContent = ordersData.length;
+      const panel = document.getElementById("ordersPanel");
+      if (ordersData.length === 0) {
+        panel.innerHTML = `<div class="bg-white rounded-2xl p-8 text-center text-sm text-slate-500 border border-dashed border-slate-300">ఇంకా కిరాణా ఆర్డర్లు ఏవీ రాలేదు.</div>`;
+        return;
+      }
+      panel.innerHTML = ordersData
+        .map(
+          (o) => `
+            <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-2.5">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <span class="text-sm font-extrabold text-slate-900">${o.id || "ORDER"} · ₹${o.amount || 0}</span>
+                  <span class="ml-2 text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">${o.status || "కొత్తది"}</span>
+                </div>
+                <span class="text-xs text-slate-500">${o.time || ""}</span>
+              </div>
+              <p class="text-xs sm:text-sm font-semibold text-slate-800">${o.summary || ""}</p>
+              <p class="text-xs text-slate-600">👤 ${o.customerName || "కస్టమర్"} · 📞 ${o.customerPhone || "-"} · 💳 ${o.payment || "COD"}</p>
+              <p class="text-xs text-slate-500">📍 ${o.address || ""}</p>
+              <div class="flex flex-wrap items-center gap-2 pt-1">
+                ${o.mapLink ? `<a href="${o.mapLink}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 text-xs font-bold border border-blue-200">🗺️ Google Maps</a>` : ""}
+                ${o.customerPhone ? `<a href="https://wa.me/91${String(o.customerPhone).replace(/\D/g, "").slice(-10)}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200">💬 WhatsApp</a>` : ""}
+                <button type="button" data-kind="orders" data-key="${o.fbKey}" data-status="ప్యాకింగ్ అవుతోంది 📦" class="status-btn px-2.5 py-1.5 rounded-xl bg-amber-100 text-amber-900 text-xs font-bold">ప్యాకింగ్</button>
+                <button type="button" data-kind="orders" data-key="${o.fbKey}" data-status="డెలివరీ పూర్తయింది ✅" class="status-btn px-2.5 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold">పూర్తయింది</button>
+              </div>
+            </div>
+          `
+        )
+        .join("");
+
+      panel.querySelectorAll(".status-btn").forEach((btn) =>
+        btn.addEventListener("click", () => updateItemStatus(btn.dataset.kind, btn.dataset.key, btn.dataset.status))
+      );
+    }
+
+    function renderRides() {
+      document.getElementById("ridesCountBadge").textContent = ridesData.length;
+      const panel = document.getElementById("ridesPanel");
+      if (ridesData.length === 0) {
+        panel.innerHTML = `<div class="bg-white rounded-2xl p-8 text-center text-sm text-slate-500 border border-dashed border-slate-300">ఇంకా బైక్ / ఆటో రైడ్ బుకింగ్స్ ఏవీ రాలేదు.</div>`;
+        return;
+      }
+      panel.innerHTML = ridesData
+        .map(
+          (r) => `
+            <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-2.5">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <span class="text-sm font-extrabold text-slate-900">${r.id || "RIDE"} · ₹${r.amount || 0}</span>
+                  <span class="ml-2 text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">${r.status || "కొత్తది"}</span>
+                </div>
+                <span class="text-xs text-slate-500">${r.time || ""}</span>
+              </div>
+              <p class="text-xs sm:text-sm font-semibold text-slate-800">${r.summary || ""}</p>
+              <p class="text-xs text-slate-600">👤 ${r.customerName || "కస్టమర్"} · 📞 ${r.customerPhone || "-"} · 💳 ${r.payment || "COD"}</p>
+              <div class="flex flex-wrap items-center gap-2 pt-1">
+                ${r.mapLink ? `<a href="${r.mapLink}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 text-xs font-bold border border-blue-200">🗺️ Google Maps రూట్</a>` : ""}
+                ${r.customerPhone ? `<a href="https://wa.me/91${String(r.customerPhone).replace(/\D/g, "").slice(-10)}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200">💬 WhatsApp</a>` : ""}
+                <button type="button" data-kind="rides" data-key="${r.fbKey}" data-status="డ్రైవర్ బయలుదేరారు 🛵" class="status-btn px-2.5 py-1.5 rounded-xl bg-amber-100 text-amber-900 text-xs font-bold">బయలుదేరాను</button>
+                <button type="button" data-kind="rides" data-key="${r.fbKey}" data-status="రైడ్ పూర్తయింది ✅" class="status-btn px-2.5 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold">పూర్తయింది</button>
+              </div>
+            </div>
+          `
+        )
+        .join("");
+
+      panel.querySelectorAll(".status-btn").forEach((btn) =>
+        btn.addEventListener("click", () => updateItemStatus(btn.dataset.kind, btn.dataset.key, btn.dataset.status))
+      );
+    }
+
+    document.getElementById("unlockBtn").addEventListener("click", () => {
+      if (document.getElementById("pinInput").value.trim() === ADMIN_PIN) {
+        document.getElementById("pinScreen").classList.add("hidden");
+        try {
+          if ("Notification" in window && Notification.permission === "default") {
+            Notification.requestPermission();
+          }
+        } catch {}
+        fetchFirebaseData();
+        setInterval(fetchFirebaseData, 4000);
+      } else {
+        document.getElementById("pinError").classList.remove("hidden");
+      }
+    });
+
+    document.getElementById("dismissAlertBtn").addEventListener("click", () => {
+      document.getElementById("liveAlertBanner").classList.add("hidden");
+    });
+
+    document.getElementById("soundToggleBtn").addEventListener("click", (e) => {
+      soundEnabled = !soundEnabled;
+      e.target.textContent = soundEnabled ? "🔊 సౌండ్ అలర్ట్: ON" : "🔇 సౌండ్ అలర్ట్: OFF";
+    });
+
+    document.getElementById("refreshNowBtn").addEventListener("click", fetchFirebaseData);
+
+    function switchAdminTab(tab) {
+      document.getElementById("ordersPanel").classList.toggle("hidden", tab !== "orders");
+      document.getElementById("ridesPanel").classList.toggle("hidden", tab !== "rides");
+      document.getElementById("offersPanel").classList.toggle("hidden", tab !== "offers");
+
+      document.getElementById("adminTabOrders").className = tab === "orders" ? "py-2 px-2 rounded-xl text-xs sm:text-sm font-bold bg-white text-emerald-700 shadow-xs" : "py-2 px-2 rounded-xl text-xs sm:text-sm font-bold text-slate-600";
+      document.getElementById("adminTabRides").className = tab === "rides" ? "py-2 px-2 rounded-xl text-xs sm:text-sm font-bold bg-white text-amber-700 shadow-xs" : "py-2 px-2 rounded-xl text-xs sm:text-sm font-bold text-slate-600";
+      document.getElementById("adminTabOffers").className = tab === "offers" ? "py-2 px-2 rounded-xl text-xs sm:text-sm font-bold bg-white text-indigo-700 shadow-xs" : "py-2 px-2 rounded-xl text-xs sm:text-sm font-bold text-slate-600";
+    }
+
+    document.getElementById("adminTabOrders").addEventListener("click", () => switchAdminTab("orders"));
+    document.getElementById("adminTabRides").addEventListener("click", () => switchAdminTab("rides"));
+    document.getElementById("adminTabOffers").addEventListener("click", () => switchAdminTab("offers"));
+
+    document.getElementById("publishOfferBtn").addEventListener("click", async () => {
+      const msg = document.getElementById("offerMessageInput").value.trim();
+      if (!msg) return;
+      try {
+        await fetch(`${FIREBASE_BASE}/offers/latest.json`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: msg, updatedAt: Date.now() }),
+        });
+        const status = document.getElementById("offerStatusMsg");
+        status.textContent = "✅ ఆఫర్ పబ్లిష్ అయింది! కస్టమర్ యాప్‌లో వెంటనే కనిపిస్తుంది.";
+        status.classList.remove("hidden");
+      } catch {}
+    });
+  </script>
+</body>
+</html>

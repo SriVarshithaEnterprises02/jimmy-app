@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="te">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jimmy — కిరాణా డెలివరీ &amp; బైక్/ఆటో రైడ్స్</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Telugu:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Noto Sans Telugu', 'Inter', sans-serif;
+      background-color: #f8fafc;
+    }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .leaflet-container { z-index: 10; font-family: inherit; }
+  </style>
+</head>
+<body class="text-slate-900 pb-24">
+
+  <!-- Offer Notification Ticker -->
+  <div class="bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 text-slate-900 text-xs font-semibold py-2 px-3 flex items-center justify-between gap-2 shadow-sm">
+    <div class="flex items-center gap-1.5 truncate">
+      <span>🎉</span>
+      <span id="offerTickerText" class="truncate">మొదటి ఆర్డర్‌పై 10% తగ్గింపు! కోడ్: JIMMY10 • 2వ ఆర్డర్‌పై ఫ్రీ డెలివరీ</span>
+    </div>
+    <button id="enableNotifBtn" type="button" class="shrink-0 bg-slate-900 text-white px-2.5 py-1 rounded-full text-[11px] font-semibold hover:bg-slate-800 transition">
+      🔔 ఆఫర్ అలర్ట్‌లు
+    </button>
+  </div>
+
+  <!-- Sticky Header -->
+  <header class="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm">
+    <div class="max-w-3xl mx-auto px-3.5 py-3 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 text-white font-extrabold text-lg flex items-center justify-center shadow">
+          J
+        </div>
+        <div>
+          <div class="flex items-center gap-1.5">
+            <h1 class="text-lg font-extrabold tracking-tight text-slate-900 leading-none">Jimmy</h1>
+            <span class="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full">10 ని|| డెలివరీ</span>
+          </div>
+          <p class="text-[11px] text-slate-500 mt-0.5">శ్రీ వర్షిత ఎంటర్‌ప్రైజెస్ · కంచికచర్ల &amp; చుట్టుపక్కల</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button id="notifDrawerBtn" type="button" class="relative p-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition" aria-label="నోటిఫికేషన్లు">
+          <span class="text-base">🔔</span>
+          <span id="notifBadge" class="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">2</span>
+        </button>
+        <button id="ordersDrawerBtn" type="button" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700 transition">
+          📦 ఆర్డర్లు
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Mode Switcher: Blinkit (Groceries) vs Rapido (Rides) -->
+    <div class="max-w-3xl mx-auto px-3.5 pb-3">
+      <div class="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-2xl">
+        <button id="tabGroceryBtn" type="button" class="py-2.5 px-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 bg-white text-emerald-700 shadow-sm transition">
+          <span>🛒</span>
+          <span>కిరాణా &amp; జనరల్ స్టోర్</span>
+        </button>
+        <button id="tabRideBtn" type="button" class="py-2.5 px-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 text-slate-600 hover:text-slate-900 transition">
+          <span>🛺</span>
+          <span>బైక్ &amp; ఆటో రైడ్</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-3xl mx-auto px-3.5 pt-4 space-y-5">
+
+    <!-- ===================== SECTION 1: GROCERY (BLINKIT CLONE) ===================== -->
+    <section id="grocerySection" class="space-y-4">
+      <!-- Plastic-free & Quick Delivery Banner -->
+      <div class="rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-4 shadow-sm flex items-center justify-between gap-3">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider text-emerald-100">🌿 100% ప్లాస్టిక్-ఫ్రీ స్టోర్</p>
+          <h2 class="text-base sm:text-lg font-bold mt-0.5">తాజా కిరాణా సరుకులు 10–15 నిమిషాల్లో ఇంటి వద్దకే!</h2>
+          <p class="text-xs text-emerald-50 mt-1">కనీస ఆర్డర్ లేదు · UPI లేదా క్యాష్ ఆన్ డెలివరీ</p>
+        </div>
+        <div class="text-3xl shrink-0">🛍️</div>
+      </div>
+
+      <!-- Search Input -->
+      <div class="relative">
+        <input id="searchInput" type="text" placeholder="బియ్యం, పప్పు, నూనె, పాలు, సబ్బు... వెతకండి" class="w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-4 py-3 text-sm shadow-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" />
+        <span class="absolute left-3.5 top-3.5 text-slate-400">🔍</span>
+      </div>
+
+      <!-- Category Pills -->
+      <div id="categoryBar" class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1"></div>
+
+      <!-- Product Grid -->
+      <div id="productGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+    </section>
+
+    <!-- ===================== SECTION 2: RIDES (RAPIDO CLONE + FREE GOOGLE MAPS LINK) ===================== -->
+    <section id="rideSection" class="hidden space-y-4">
+      <div class="rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 p-4 shadow-sm flex items-center justify-between gap-3">
+        <div>
+          <p class="text-xs font-bold uppercase tracking-wider text-amber-950/80">⚡ వెంటనే రైడ్ బుక్ చేయండి</p>
+          <h2 class="text-base sm:text-lg font-extrabold mt-0.5">బైక్ &amp; ఆటో కిరాయికి — తక్కువ ఛార్జీ, సేఫ్ రైడ్</h2>
+          <p class="text-xs text-amber-950/90 mt-1">1 బైక్ &amp; 1 ఆటో అందుబాటులో ఉన్నాయి · Google Maps నావిగేషన్‌తో</p>
+        </div>
+        <div class="text-3xl shrink-0">🛺</div>
+      </div>
+
+      <!-- Vehicle Selection -->
+      <div class="grid grid-cols-2 gap-3">
+        <button id="selectBikeBtn" type="button" class="text-left p-3.5 rounded-2xl border-2 border-amber-500 bg-amber-50/70 shadow-sm transition">
+          <div class="flex items-center justify-between">
+            <span class="text-2xl">🏍️</span>
+            <span class="text-xs font-bold bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full">ఫాస్ట్</span>
+          </div>
+          <p class="font-bold text-slate-900 mt-1.5">బైక్ రైడ్</p>
+          <p class="text-xs text-slate-600">బేస్ ₹20 + ₹10 / కి.మీ</p>
+        </button>
+
+        <button id="selectAutoBtn" type="button" class="text-left p-3.5 rounded-2xl border-2 border-slate-200 bg-white hover:border-slate-300 shadow-sm transition">
+          <div class="flex items-center justify-between">
+            <span class="text-2xl">🛺</span>
+            <span class="text-xs font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full">ఫ్యామిలీ</span>
+          </div>
+          <p class="font-bold text-slate-900 mt-1.5">ఆటో రైడ్</p>
+          <p class="text-xs text-slate-600">బేస్ ₹35 + ₹18 / కి.మీ</p>
+        </button>
+      </div>
+
+      <!-- Pickup & Drop Selectors -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 space-y-3 shadow-sm">
+        <div class="grid sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">🟢 పికప్ గ్రామం / లొకేషన్</label>
+            <select id="pickupSelect" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-amber-500"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">🔴 డ్రాప్ గ్రామం / లొకేషన్</label>
+            <select id="dropSelect" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-amber-500"></select>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 pt-1">
+          <button id="pinModePickupBtn" type="button" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
+            📍 మ్యాప్‌పై పికప్ మార్చండి
+          </button>
+          <button id="pinModeDropBtn" type="button" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+            🏁 మ్యాప్‌పై డ్రాప్ మార్చండి
+          </button>
+          <button id="useGpsBtn" type="button" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100">
+            📡 నా లైవ్ GPS తీసుకోండి
+          </button>
+        </div>
+
+        <!-- Live Free Map Container (explicit pixel height required) -->
+        <div id="rideMap" class="w-full rounded-xl border border-slate-200 overflow-hidden" style="height: 260px;"></div>
+
+        <!-- Fare Estimate & Free Google Maps Link -->
+        <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-50 rounded-xl p-3 border border-slate-200">
+          <div>
+            <p class="text-xs text-slate-500">అంచనా దూరం: <strong id="rideDistanceText" class="text-slate-800">0 కి.మీ</strong></p>
+            <p class="text-base font-extrabold text-slate-900">అంచనా ఛార్జీ: <span id="rideFareText" class="text-emerald-700">₹0</span></p>
+          </div>
+          <div class="flex items-center gap-2">
+            <a id="openGoogleMapsLink" href="https://www.google.com/maps" target="_blank" rel="noopener noreferrer" class="px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 transition">
+              🗺️ Google Maps లో చూడండి
+            </a>
+            <button id="bookRideBtn" type="button" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-sm font-extrabold shadow-sm transition">
+              రైడ్ బుక్ చేయండి
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Floating Cart Bar (Only visible in Grocery mode when cart has items) -->
+  <div id="floatingCartBar" class="hidden fixed bottom-3 left-0 right-0 z-40 px-3.5">
+    <div class="max-w-3xl mx-auto bg-emerald-700 text-white rounded-2xl px-4 py-3 shadow-xl flex items-center justify-between gap-3">
+      <div>
+        <p id="cartSummaryCount" class="text-xs font-semibold text-emerald-100">0 వస్తువులు</p>
+        <p id="cartSummaryTotal" class="text-base font-extrabold">₹0</p>
+      </div>
+      <button id="openCheckoutBtn" type="button" class="bg-white text-emerald-800 px-4 py-2 rounded-xl text-sm font-extrabold hover:bg-emerald-50 transition">
+        కార్ట్ &amp; పేమెంట్ →
+      </button>
+    </div>
+  </div>
+
+  <!-- ===================== CHECKOUT & PAYMENT MODAL ===================== -->
+  <div id="checkoutModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[90vh] overflow-y-auto p-5 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 id="checkoutTitle" class="text-lg font-extrabold text-slate-900">ఆర్డర్ &amp; పేమెంట్ వివరాలు</h3>
+        <button id="closeCheckoutBtn" type="button" class="p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600">✕</button>
+      </div>
+
+      <!-- Order Summary Items -->
+      <div id="checkoutItemsList" class="space-y-2 text-sm"></div>
+
+      <!-- Customer Details -->
+      <div class="space-y-2.5 pt-2 border-t border-slate-100">
+        <input id="custName" type="text" placeholder="మీ పేరు" class="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-emerald-500" />
+        <input id="custPhone" type="tel" placeholder="మొబైల్ నంబర్ (10 అంకెలు)" class="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-emerald-500" />
+        <textarea id="custAddress" rows="2" placeholder="డెలివరీ అడ్రస్ / ల్యాండ్‌మార్క్" class="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm outline-none focus:border-emerald-500"></textarea>
+      </div>
+
+      <!-- Payment Method (UPI + COD) -->
+      <div class="space-y-2.5 pt-2 border-t border-slate-100">
+        <p class="text-xs font-bold uppercase tracking-wider text-slate-500">పేమెంట్ విధానం ఎంచుకోండి</p>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="payUpiBtn" type="button" class="p-3 rounded-xl border-2 border-emerald-600 bg-emerald-50 text-left">
+            <p class="text-sm font-bold text-emerald-900">📱 UPI / PhonePe</p>
+            <p class="text-[11px] text-emerald-700">0% ఫీజు · తక్షణ పేమెంట్</p>
+          </button>
+          <button id="payCodBtn" type="button" class="p-3 rounded-xl border-2 border-slate-200 bg-white text-left">
+            <p class="text-sm font-bold text-slate-800">💵 క్యాష్ (COD)</p>
+            <p class="text-[11px] text-slate-500">డెలివరీ / రైడ్ తర్వాత ఇవ్వండి</p>
+          </button>
+        </div>
+
+        <div id="upiDetailsBox" class="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2 text-xs">
+          <p class="font-semibold text-slate-700">PhonePe / UPI ID: <span class="font-mono text-emerald-700">Q268886335@ybl</span></p>
+          <div class="flex flex-wrap gap-2">
+            <a id="upiDeepLink" href="#" class="inline-flex items-center gap-1 bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-bold hover:bg-indigo-700">
+              ⚡ UPI యాప్‌లో పే చేయండి
+            </a>
+          </div>
+          <input id="utrInput" type="text" placeholder="పేమెంట్ తర్వాత 12-అంకెల UTR / Ref నంబర్ (ఐచ్ఛికం)" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-emerald-500" />
+        </div>
+      </div>
+
+      <button id="confirmOrderBtn" type="button" class="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm shadow-md transition">
+        ✅ ఆర్డర్ కన్ఫర్మ్ చేసి WhatsApp లో పంపండి
+      </button>
+    </div>
+  </div>
+
+  <!-- ===================== NOTIFICATIONS & ORDERS DRAWER MODAL ===================== -->
+  <div id="infoModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[85vh] overflow-y-auto p-5 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 id="infoModalTitle" class="text-lg font-extrabold text-slate-900">నోటిఫికేషన్లు</h3>
+        <button id="closeInfoModalBtn" type="button" class="p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600">✕</button>
+      </div>
+      <div id="infoModalBody" class="space-y-2.5 text-sm"></div>
+    </div>
+  </div>
+
+  <!-- In-App Toast Notification -->
+  <div id="toastBox" class="hidden fixed top-16 right-3 left-3 sm:left-auto sm:w-80 z-50 bg-slate-900 text-white text-xs font-medium px-4 py-3 rounded-2xl shadow-xl"></div>
+
+  <script>
+    // =========================================================================
+    // 1. DATA CATALOG (శ్రీ వర్షిత ఎంటర్‌ప్రైజెస్ - కిరాణా, జనరల్ స్టోర్ & గ్రామాలు)
+    // =========================================================================
+    const OWNER_WHATSAPP = "917780204145";
+    const FIREBASE_BASE = "https://chipo-admin-sve-default-rtdb.firebaseio.com/jimmy";
+    const OWNER_UPI_ID = "Q268886335@ybl";
+
+    const PRODUCTS = [
+      { id: 1, name: "సోనా మసూరి బియ్యం (5 kg)", category: "బియ్యం & పప్పులు", price: 295, mrp: 330, unit: "5 kg", emoji: "🌾" },
+      { id: 2, name: "కందిపప్పు (1 kg)", category: "బియ్యం & పప్పులు", price: 145, mrp: 165, unit: "1 kg", emoji: "🫘" },
+      { id: 3, name: "సన్‌ఫ్లవర్ ఆయిల్ (1 L)", category: "నూనె & మసాలాలు", price: 138, mrp: 155, unit: "1 L", emoji: "🌻" },
+      { id: 4, name: "తాజా పాలు (500 ml)", category: "పాలు & బ్రెడ్", price: 32, mrp: 34, unit: "500 ml", emoji: "🥛" },
+      { id: 5, name: "బ్రెడ్ ప్యాకెట్", category: "పాలు & బ్రెడ్", price: 40, mrp: 45, unit: "1 pack", emoji: "🍞" },
+      { id: 6, name: "టమాటా (1 kg)", category: "కూరగాయలు", price: 35, mrp: 45, unit: "1 kg", emoji: "🍅" },
+      { id: 7, name: "ఉల్లిపాయలు (1 kg)", category: "కూరగాయలు", price: 42, mrp: 50, unit: "1 kg", emoji: "🧅" },
+      { id: 8, name: "టీ పొడి (250 g)", category: "నూనె & మసాలాలు", price: 110, mrp: 125, unit: "250 g", emoji: "☕" },
+      { id: 9, name: "సంతూర్ సబ్బు (4 ప్యాక్)", category: "సబ్బులు & క్లీనింగ్", price: 128, mrp: 144, unit: "4 pcs", emoji: "🧼" },
+      { id: 10, name: "డిటర్జెంట్ పౌడర్ (1 kg)", category: "సబ్బులు & క్లీనింగ్", price: 95, mrp: 110, unit: "1 kg", emoji: "🧺" },
+      { id: 11, name: "బిస్కెట్లు & స్నాక్స్", category: "స్నాక్స్ & డ్రింక్స్", price: 30, mrp: 35, unit: "1 pack", emoji: "🍪" },
+      { id: 12, name: "కూల్ డ్రింక్ (750 ml)", category: "స్నాక్స్ & డ్రింక్స్", price: 45, mrp: 50, unit: "750 ml", emoji: "🥤" },
+    ];
+
+    const VILLAGES = [
+      { name: "వేములపల్లి (స్టోర్ దగ్గర)", lat: 16.6950, lng: 80.3750 },
+      { name: "కంచికచర్ల", lat: 16.6856, lng: 80.3892 },
+      { name: "పెండ్యాల", lat: 16.6620, lng: 80.3780 },
+      { name: "కీసర", lat: 16.6680, lng: 80.3450 },
+      { name: "నందిగామ", lat: 16.7710, lng: 80.2850 },
+      { name: "కంచల", lat: 16.7150, lng: 80.3650 },
+      { name: "చందర్లపాడు", lat: 16.6980, lng: 80.2450 },
+      { name: "ముప్పాళ్ళ", lat: 16.6820, lng: 80.2950 },
+      { name: "గండేపల్లి", lat: 16.7250, lng: 80.4100 },
+      { name: "పేరకలపాడు", lat: 16.7080, lng: 80.4020 },
+    ];
+
+    // =========================================================================
+    // 2. APP STATE
+    // =========================================================================
+    let activeTab = "grocery"; // "grocery" | "ride"
+    let activeCategory = "అన్నీ";
+    let searchQuery = "";
+    let cart = {}; // { productId: qty }
+    let selectedVehicle = "bike"; // "bike" | "auto"
+    let paymentMethod = "upi"; // "upi" | "cod"
+    let checkoutMode = "grocery"; // "grocery" | "ride"
+    let pinMode = "pickup"; // "pickup" | "drop"
+
+    let pickupCoords = { ...VILLAGES[0] };
+    let dropCoords = { ...VILLAGES[1] };
+
+    let notifications = [
+      { id: 1, title: "🎉 మొదటి ఆర్డర్ ఆఫర్!", body: "మీ మొదటి కిరాణా ఆర్డర్‌పై 10% తగ్గింపు పొందండి.", time: "ఇప్పుడే" },
+      { id: 2, title: "🛺 తక్కువ ధరలో ఆటో & బైక్", body: "కంచికచర్ల పరిసర గ్రామాలకు బైక్ ₹10/కి.మీ మాత్రమే!", time: "5 ని|| క్రితం" },
+    ];
+
+    let savedOrders = [];
+    try {
+      const raw = localStorage.getItem("jimmy_orders_v1");
+      if (raw) savedOrders = JSON.parse(raw);
+    } catch {}
+
+    // =========================================================================
+    // 3. HELPERS (Toast, Notifications, Distance, Storage)
+    // =========================================================================
+    let toastTimer = null;
+    function showToast(msg) {
+      const el = document.getElementById("toastBox");
+      el.textContent = msg;
+      el.classList.remove("hidden");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.add("hidden"), 3200);
+    }
+
+    function addNotification(title, body) {
+      notifications.unshift({ id: Date.now(), title, body, time: "ఇప్పుడే" });
+      document.getElementById("notifBadge").textContent = notifications.length;
+      showToast(title + " " + body);
+      try {
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification(title, { body });
+        }
+      } catch {}
+    }
+
+    function calcDistanceKm(lat1, lng1, lat2, lng2) {
+      const R = 6371;
+      const dLat = ((lat2 - lat1) * Math.PI) / 180;
+      const dLng = ((lng2 - lng1) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((lat1 * Math.PI) / 180) *
+          Math.cos((lat2 * Math.PI) / 180) *
+          Math.sin(dLng / 2) *
+          Math.sin(dLng / 2);
+      return Math.max(1.0, +(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))).toFixed(1));
+    }
+
+    function getRideFare() {
+      const km = calcDistanceKm(pickupCoords.lat, pickupCoords.lng, dropCoords.lat, dropCoords.lng);
+      const base = selectedVehicle === "bike" ? 20 : 35;
+      const perKm = selectedVehicle === "bike" ? 10 : 18;
+      return { km, fare: Math.round(base + km * perKm) };
+    }
+
+    // =========================================================================
+    // 4. GROCERY RENDERING
+    // =========================================================================
+    function renderCategories() {
+      const cats = ["అన్నీ", ...new Set(PRODUCTS.map((p) => p.category))];
+      const bar = document.getElementById("categoryBar");
+      bar.innerHTML = cats
+        .map((c) => {
+          const active = c === activeCategory;
+          return `<button type="button" data-cat="${c}" class="cat-btn shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition ${
+            active ? "bg-emerald-600 text-white shadow-sm" : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+          }">${c}</button>`;
+        })
+        .join("");
+
+      bar.querySelectorAll(".cat-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          activeCategory = btn.dataset.cat;
+          renderCategories();
+          renderProducts();
+        });
+      });
+    }
+
+    function renderProducts() {
+      const q = searchQuery.trim().toLowerCase();
+      const list = PRODUCTS.filter((p) => {
+        const matchCat = activeCategory === "అన్నీ" || p.category === activeCategory;
+        const matchSearch = !q || p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q);
+        return matchCat && matchSearch;
+      });
+
+      const grid = document.getElementById("productGrid");
+      if (list.length === 0) {
+        grid.innerHTML = `<div class="col-span-full bg-white rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500">ఈ పేరుతో వస్తువులు లేవు. మరో పేరుతో వెతకండి.</div>`;
+        return;
+      }
+
+      grid.innerHTML = list
+        .map((p) => {
+          const qty = cart[p.id] || 0;
+          return `
+            <div class="bg-white rounded-2xl border border-slate-200 p-3 flex flex-col justify-between shadow-sm">
+              <div>
+                <div class="h-20 rounded-xl bg-slate-50 flex items-center justify-center text-4xl mb-2.5">${p.emoji}</div>
+                <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">${p.unit}</span>
+                <h3 class="text-xs sm:text-sm font-bold text-slate-900 mt-1 leading-snug">${p.name}</h3>
+              </div>
+              <div class="mt-3 flex items-center justify-between gap-2">
+                <div>
+                  <span class="text-sm font-extrabold text-slate-900">₹${p.price}</span>
+                  <span class="text-[11px] text-slate-400 line-through ml-1">₹${p.mrp}</span>
+                </div>
+                ${
+                  qty === 0
+                    ? `<button type="button" data-add="${p.id}" class="add-btn px-3 py-1.5 rounded-xl border border-emerald-600 text-emerald-700 text-xs font-extrabold hover:bg-emerald-50 transition">+ ADD</button>`
+                    : `<div class="flex items-center gap-2 bg-emerald-600 text-white rounded-xl px-2 py-1 text-xs font-bold">
+                        <button type="button" data-dec="${p.id}" class="dec-btn px-1">−</button>
+                        <span>${qty}</span>
+                        <button type="button" data-inc="${p.id}" class="inc-btn px-1">+</button>
+                      </div>`
+                }
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+
+      grid.querySelectorAll(".add-btn, .inc-btn").forEach((b) =>
+        b.addEventListener("click", () => updateCart(Number(b.dataset.add || b.dataset.inc), 1))
+      );
+      grid.querySelectorAll(".dec-btn").forEach((b) =>
+        b.addEventListener("click", () => updateCart(Number(b.dataset.dec), -1))
+      );
+    }
+
+    function updateCart(productId, delta) {
+      const next = (cart[productId] || 0) + delta;
+      if (next <= 0) delete cart[productId];
+      else cart[productId] = next;
+      renderProducts();
+      updateCartBar();
+    }
+
+    function updateCartBar() {
+      let totalCount = 0;
+      let totalPrice = 0;
+      for (const [id, qty] of Object.entries(cart)) {
+        const prod = PRODUCTS.find((p) => p.id === Number(id));
+        if (prod) {
+          totalCount += qty;
+          totalPrice += prod.price * qty;
+        }
+      }
+      const bar = document.getElementById("floatingCartBar");
+      if (activeTab === "grocery" && totalCount > 0) {
+        bar.classList.remove("hidden");
+        document.getElementById("cartSummaryCount").textContent = `${totalCount} వస్తువులు కార్ట్‌లో ఉన్నాయి`;
+        document.getElementById("cartSummaryTotal").textContent = `మొత్తం: ₹${totalPrice}`;
+      } else {
+        bar.classList.add("hidden");
+      }
+    }
+
+    // =========================================================================
+    // 5. LEAFLET LIVE MAP (100% Free ArcGIS Street Tiles + Google Maps Link)
+    // =========================================================================
+    let map = null;
+    let pickupMarker = null;
+    let dropMarker = null;
+    let routeLine = null;
+
+    function initMap() {
+      if (map) {
+        setTimeout(() => map.invalidateSize(), 150);
+        return;
+      }
+      map = L.map("rideMap").setView([16.6856, 80.3892], 12);
+      L.tileLayer(
+        "https://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+        { maxZoom: 19, attribution: "Esri, ArcGIS" }
+      ).addTo(map);
+
+      pickupMarker = L.marker([pickupCoords.lat, pickupCoords.lng]).addTo(map).bindPopup("🟢 పికప్");
+      dropMarker = L.marker([dropCoords.lat, dropCoords.lng]).addTo(map).bindPopup("🔴 డ్రాప్");
+      routeLine = L.polyline([[pickupCoords.lat, pickupCoords.lng], [dropCoords.lat, dropCoords.lng]], {
+        color: "#d97706",
+        weight: 4,
+        dashArray: "6, 6",
+      }).addTo(map);
+
+      map.on("click", (e) => {
+        if (pinMode === "pickup") {
+          pickupCoords = { name: "మ్యాప్ పిన్ (పికప్)", lat: +e.latlng.lat.toFixed(5), lng: +e.latlng.lng.toFixed(5) };
+          showToast("🟢 పికప్ లొకేషన్ మ్యాప్‌పై సెట్ చేయబడింది!");
+        } else {
+          dropCoords = { name: "మ్యాప్ పిన్ (డ్రాప్)", lat: +e.latlng.lat.toFixed(5), lng: +e.latlng.lng.toFixed(5) };
+          showToast("🔴 డ్రాప్ లొకేషన్ మ్యాప్‌పై సెట్ చేయబడింది!");
+        }
+        updateRideMapAndFare();
+      });
+
+      updateRideMapAndFare();
+    }
+
+    function updateRideMapAndFare() {
+      const { km, fare } = getRideFare();
+      document.getElementById("rideDistanceText").textContent = `${km} కి.మీ`;
+      document.getElementById("rideFareText").textContent = `₹${fare}`;
+      document.getElementById("openGoogleMapsLink").href =
+        `https://www.google.com/maps/dir/?api=1&origin=${pickupCoords.lat},${pickupCoords.lng}&destination=${dropCoords.lat},${dropCoords.lng}`;
+
+      if (map && pickupMarker && dropMarker && routeLine) {
+        pickupMarker.setLatLng([pickupCoords.lat, pickupCoords.lng]);
+        dropMarker.setLatLng([dropCoords.lat, dropCoords.lng]);
+        routeLine.setLatLngs([[pickupCoords.lat, pickupCoords.lng], [dropCoords.lat, dropCoords.lng]]);
+        map.fitBounds(routeLine.getBounds(), { padding: [35, 35] });
+      }
+    }
+
+    function initVillageDropdowns() {
+      const pSel = document.getElementById("pickupSelect");
+      const dSel = document.getElementById("dropSelect");
+      const opts = VILLAGES.map((v, i) => `<option value="${i}">${v.name}</option>`).join("");
+      pSel.innerHTML = opts;
+      dSel.innerHTML = opts;
+      pSel.value = "0";
+      dSel.value = "1";
+
+      pSel.addEventListener("change", () => {
+        pickupCoords = { ...VILLAGES[Number(pSel.value)] };
+        updateRideMapAndFare();
+      });
+      dSel.addEventListener("change", () => {
+        dropCoords = { ...VILLAGES[Number(dSel.value)] };
+        updateRideMapAndFare();
+      });
+    }
+
+    // =========================================================================
+    // 6. CHECKOUT & ORDER TRACKING
+    // =========================================================================
+    function openCheckout(mode) {
+      checkoutMode = mode;
+      const listEl = document.getElementById("checkoutItemsList");
+      let totalAmount = 0;
+
+      if (mode === "grocery") {
+        document.getElementById("checkoutTitle").textContent = "🛒 కిరాణా ఆర్డర్ & పేమెంట్";
+        const rows = Object.entries(cart).map(([id, qty]) => {
+          const p = PRODUCTS.find((item) => item.id === Number(id));
+          if (!p) return "";
+          const sub = p.price * qty;
+          totalAmount += sub;
+          return `<div class="flex justify-between"><span>${p.emoji} ${p.name} × ${qty}</span><span class="font-bold">₹${sub}</span></div>`;
+        });
+        const discount = savedOrders.length === 0 ? Math.round(totalAmount * 0.1) : 0;
+        const finalPay = totalAmount - discount;
+        totalAmount = finalPay;
+        listEl.innerHTML = `
+          ${rows.join("")}
+          ${discount > 0 ? `<div class="flex justify-between text-emerald-700 font-semibold"><span>🎉 మొదటి ఆర్డర్ 10% తగ్గింపు</span><span>-₹${discount}</span></div>` : ""}
+          <div class="flex justify-between text-base font-extrabold border-t border-slate-200 pt-2"><span>చెల్లించాల్సిన మొత్తం</span><span>₹${finalPay}</span></div>
+        `;
+      } else {
+        const { km, fare } = getRideFare();
+        totalAmount = fare;
+        document.getElementById("checkoutTitle").textContent = "🛺 రైడ్ కన్ఫర్మేషన్ & పేమెంట్";
+        listEl.innerHTML = `
+          <div class="bg-amber-50 rounded-xl p-3 space-y-1">
+            <p class="font-bold text-slate-900">${selectedVehicle === "bike" ? "🏍️ బైక్ రైడ్" : "🛺 ఆటో రైడ్"} (${km} కి.మీ)</p>
+            <p class="text-xs text-slate-600">🟢 పికప్: ${pickupCoords.name}</p>
+            <p class="text-xs text-slate-600">🔴 డ్రాప్: ${dropCoords.name}</p>
+            <p class="text-base font-extrabold text-emerald-700 pt-1">మొత్తం ఛార్జీ: ₹${fare}</p>
+          </div>
+        `;
+      }
+
+      document.getElementById("upiDeepLink").href =
+        `upi://pay?pa=${OWNER_UPI_ID}&pn=Sri%20Varshitha%20Enterprises&am=${totalAmount}&cu=INR`;
+
+      document.getElementById("checkoutModal").classList.remove("hidden");
+    }
+
+    document.getElementById("confirmOrderBtn").addEventListener("click", () => {
+      const name = document.getElementById("custName").value.trim() || "కస్టమర్";
+      const phone = document.getElementById("custPhone").value.trim();
+      const address = document.getElementById("custAddress").value.trim() || "కంచికచర్ల ప్రాంతం";
+      const utr = document.getElementById("utrInput").value.trim();
+
+      if (phone.length < 10) {
+        showToast("⚠️ దయచేసి 10 అంకెల మొబైల్ నంబర్ ఇవ్వండి.");
+        return;
+      }
+
+      let summary = "";
+      let amount = 0;
+      let mapLink = `https://www.google.com/maps?q=${pickupCoords.lat},${pickupCoords.lng}`;
+
+      if (checkoutMode === "grocery") {
+        const itemsText = Object.entries(cart)
+          .map(([id, qty]) => {
+            const p = PRODUCTS.find((item) => item.id === Number(id));
+            if (!p) return "";
+            amount += p.price * qty;
+            return `${p.name} x${qty}`;
+          })
+          .join(", ");
+        if (savedOrders.length === 0) amount = amount - Math.round(amount * 0.1);
+        summary = `కిరాణా: ${itemsText}`;
+        cart = {};
+        renderProducts();
+        updateCartBar();
+      } else {
+        const { km, fare } = getRideFare();
+        amount = fare;
+        summary = `${selectedVehicle === "bike" ? "బైక్" : "ఆటో"} రైడ్ (${pickupCoords.name} → ${dropCoords.name}, ${km} కి.మీ)`;
+        mapLink = `https://www.google.com/maps/dir/?api=1&origin=${pickupCoords.lat},${pickupCoords.lng}&destination=${dropCoords.lat},${dropCoords.lng}`;
+      }
+
+      const orderObj = {
+        id: "JM" + String(Date.now()).slice(-5),
+        type: checkoutMode,
+        summary,
+        amount,
+        payment: paymentMethod === "upi" ? `UPI${utr ? " (UTR: " + utr + ")" : ""}` : "క్యాష్ (COD)",
+        status: "ఆర్డర్ కన్ఫర్మ్ అయింది ✅",
+        time: new Date().toLocaleTimeString("te-IN", { hour: "2-digit", minute: "2-digit" }),
+      };
+
+      savedOrders.unshift(orderObj);
+      try {
+        localStorage.setItem("jimmy_orders_v1", JSON.stringify(savedOrders));
+      } catch {}
+
+      // Send live alert to Firebase Admin Panel
+      const fbFolder = checkoutMode === "grocery" ? "orders" : "rides";
+      fetch(`${FIREBASE_BASE}/${fbFolder}.json`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...orderObj,
+          customerName: name,
+          customerPhone: phone,
+          address,
+          mapLink,
+          createdAt: Date.now(),
+        }),
+      }).catch(() => {});
+
+      document.getElementById("checkoutModal").classList.add("hidden");
+      addNotification(`✅ ${orderObj.id} కన్ఫర్మ్ అయింది!`, `${summary} · ₹${amount}`);
+
+      const waText = encodeURIComponent(
+        `🛒 *Jimmy కొత్త ఆర్డర్ (${orderObj.id})*\nపేరు: ${name}\nఫోన్: ${phone}\nవివరాలు: ${summary}\nమొత్తం: ₹${amount}\nపేమెంట్: ${orderObj.payment}\nఅడ్రస్: ${address}\n📍 Google Maps: ${mapLink}`
+      );
+      window.open(`https://wa.me/${OWNER_WHATSAPP}?text=${waText}`, "_blank", "noopener,noreferrer");
+    });
+
+    // =========================================================================
+    // 7. TAB & BUTTON EVENT WIRING
+    // =========================================================================
+    document.getElementById("tabGroceryBtn").addEventListener("click", () => {
+      activeTab = "grocery";
+      document.getElementById("grocerySection").classList.remove("hidden");
+      document.getElementById("rideSection").classList.add("hidden");
+      document.getElementById("tabGroceryBtn").className = "py-2.5 px-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 bg-white text-emerald-700 shadow-sm transition";
+      document.getElementById("tabRideBtn").className = "py-2.5 px-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 text-slate-600 hover:text-slate-900 transition";
+      updateCartBar();
+    });
+
+    document.getElementById("tabRideBtn").addEventListener("click", () => {
+      activeTab = "ride";
+      document.getElementById("rideSection").classList.remove("hidden");
+      document.getElementById("grocerySection").classList.add("hidden");
+      document.getElementById("tabRideBtn").className = "py-2.5 px-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 bg-white text-amber-700 shadow-sm transition";
+      document.getElementById("tabGroceryBtn").className = "py-2.5 px-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 text-slate-600 hover:text-slate-900 transition";
+      updateCartBar();
+      initMap();
+    });
+
+    document.getElementById("searchInput").addEventListener("input", (e) => {
+      searchQuery = e.target.value;
+      renderProducts();
+    });
+
+    document.getElementById("selectBikeBtn").addEventListener("click", () => {
+      selectedVehicle = "bike";
+      document.getElementById("selectBikeBtn").className = "text-left p-3.5 rounded-2xl border-2 border-amber-500 bg-amber-50/70 shadow-sm transition";
+      document.getElementById("selectAutoBtn").className = "text-left p-3.5 rounded-2xl border-2 border-slate-200 bg-white hover:border-slate-300 shadow-sm transition";
+      updateRideMapAndFare();
+    });
+
+    document.getElementById("selectAutoBtn").addEventListener("click", () => {
+      selectedVehicle = "auto";
+      document.getElementById("selectAutoBtn").className = "text-left p-3.5 rounded-2xl border-2 border-amber-500 bg-amber-50/70 shadow-sm transition";
+      document.getElementById("selectBikeBtn").className = "text-left p-3.5 rounded-2xl border-2 border-slate-200 bg-white hover:border-slate-300 shadow-sm transition";
+      updateRideMapAndFare();
+    });
+
+    document.getElementById("pinModePickupBtn").addEventListener("click", () => {
+      pinMode = "pickup";
+      document.getElementById("pinModePickupBtn").className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300";
+      document.getElementById("pinModeDropBtn").className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200";
+      showToast("మ్యాప్‌పై పికప్ చోట ట్యాప్ చేయండి");
+    });
+
+    document.getElementById("pinModeDropBtn").addEventListener("click", () => {
+      pinMode = "drop";
+      document.getElementById("pinModeDropBtn").className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-300";
+      document.getElementById("pinModePickupBtn").className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200";
+      showToast("మ్యాప్‌పై డ్రాప్ చోట ట్యాప్ చేయండి");
+    });
+
+    document.getElementById("useGpsBtn").addEventListener("click", () => {
+      if (!navigator.geolocation) {
+        showToast("మీ బ్రౌజర్‌లో GPS సపోర్ట్ లేదు.");
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          pickupCoords = { name: "నా లైవ్ GPS లొకేషన్", lat: +pos.coords.latitude.toFixed(5), lng: +pos.coords.longitude.toFixed(5) };
+          updateRideMapAndFare();
+          showToast("📡 మీ లైవ్ GPS లొకేషన్ తీసుకోబడింది!");
+        },
+        () => showToast("⚠️ GPS అనుమతి ఇవ్వలేదు. మ్యాప్‌పై ట్యాప్ చేసి ఎంచుకోండి.")
+      );
+    });
+
+    document.getElementById("openCheckoutBtn").addEventListener("click", () => openCheckout("grocery"));
+    document.getElementById("bookRideBtn").addEventListener("click", () => openCheckout("ride"));
+    document.getElementById("closeCheckoutBtn").addEventListener("click", () => document.getElementById("checkoutModal").classList.add("hidden"));
+
+    document.getElementById("payUpiBtn").addEventListener("click", () => {
+      paymentMethod = "upi";
+      document.getElementById("payUpiBtn").className = "p-3 rounded-xl border-2 border-emerald-600 bg-emerald-50 text-left";
+      document.getElementById("payCodBtn").className = "p-3 rounded-xl border-2 border-slate-200 bg-white text-left";
+      document.getElementById("upiDetailsBox").classList.remove("hidden");
+    });
+
+    document.getElementById("payCodBtn").addEventListener("click", () => {
+      paymentMethod = "cod";
+      document.getElementById("payCodBtn").className = "p-3 rounded-xl border-2 border-emerald-600 bg-emerald-50 text-left";
+      document.getElementById("payUpiBtn").className = "p-3 rounded-xl border-2 border-slate-200 bg-white text-left";
+      document.getElementById("upiDetailsBox").classList.add("hidden");
+    });
+
+    document.getElementById("enableNotifBtn").addEventListener("click", () => {
+      try {
+        if ("Notification" in window) {
+          Notification.requestPermission().then((perm) => {
+            showToast(perm === "granted" ? "🔔 ఆఫర్ & ఆర్డర్ నోటిఫికేషన్లు ఆన్ అయ్యాయి!" : "🔔 ఇన్-యాప్ నోటిఫికేషన్లు ఆన్‌లో ఉన్నాయి.");
+          });
+        } else {
+          showToast("🔔 ఇన్-యాప్ నోటిఫికేషన్లు ఆన్‌లో ఉన్నాయి.");
+        }
+      } catch {
+        showToast("🔔 ఇన్-యాప్ నోటిఫికేషన్లు ఆన్‌లో ఉన్నాయి.");
+      }
+    });
+
+    document.getElementById("notifDrawerBtn").addEventListener("click", () => {
+      document.getElementById("infoModalTitle").textContent = "🔔 యాప్ & ఆఫర్ నోటిఫికేషన్లు";
+      document.getElementById("infoModalBody").innerHTML = notifications
+        .map(
+          (n) => `
+            <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+              <div class="flex justify-between text-xs text-slate-400">
+                <strong class="text-slate-900 text-sm">${n.title}</strong>
+                <span>${n.time}</span>
+              </div>
+              <p class="text-xs text-slate-600 mt-1">${n.body}</p>
+            </div>
+          `
+        )
+        .join("");
+      document.getElementById("infoModal").classList.remove("hidden");
+    });
+
+    document.getElementById("ordersDrawerBtn").addEventListener("click", () => {
+      document.getElementById("infoModalTitle").textContent = "📦 నా ఆర్డర్లు & రైడ్‌లు";
+      document.getElementById("infoModalBody").innerHTML =
+        savedOrders.length === 0
+          ? `<p class="text-center text-slate-500 py-6">ఇంకా ఏ ఆర్డర్లు లేవు. కిరాణా లేదా రైడ్ బుక్ చేసి చూడండి!</p>`
+          : savedOrders
+              .map(
+                (o) => `
+                  <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                    <div class="flex justify-between items-center">
+                      <span class="font-extrabold text-slate-900">${o.id} · ₹${o.amount}</span>
+                      <span class="text-[11px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">${o.status}</span>
+                    </div>
+                    <p class="text-xs text-slate-700">${o.summary}</p>
+                    <p class="text-[11px] text-slate-500">${o.payment} · ${o.time}</p>
+                  </div>
+                `
+              )
+              .join("");
+      document.getElementById("infoModal").classList.remove("hidden");
+    });
+
+    document.getElementById("closeInfoModalBtn").addEventListener("click", () => {
+      document.getElementById("infoModal").classList.add("hidden");
+    });
+
+    // Fetch live offer from Firebase Admin
+    async function loadLiveOffer() {
+      try {
+        const res = await fetch(`${FIREBASE_BASE}/offers/latest.json`);
+        const data = await res.json();
+        if (data && data.text) {
+          document.getElementById("offerTickerText").textContent = data.text;
+        }
+      } catch {}
+    }
+
+    // Initialize app on load
+    renderCategories();
+    renderProducts();
+    initVillageDropdowns();
+    updateCartBar();
+    loadLiveOffer();
+  </script>
+</body>
+</html>
